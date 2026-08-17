@@ -142,15 +142,6 @@ export default function Home() {
     context.lineWidth = 2;
     context.stroke();
 
-    context.save();
-    context.translate(340, 340);
-    context.rotate(-35 * Math.PI / 180);
-    context.beginPath();
-    context.ellipse(-75, -112, 168, 206, 0, 0, Math.PI * 2);
-    context.strokeStyle = "rgba(222, 255, 248, .055)";
-    context.lineWidth = 28;
-    context.stroke();
-    context.restore();
   }, [countries, rotation, zoom, filter, activeCountry]);
 
   const counts = useMemo(() => ({
