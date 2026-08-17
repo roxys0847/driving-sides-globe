@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { geoBounds, geoCentroid, geoContains, geoOrthographic, geoPath } from "d3-geo";
 import { feature } from "topojson-client";
 import world from "world-atlas/countries-50m.json";
-import { CHINESE_COUNTRY_NAMES } from "./country-names";
+import { CHINESE_COUNTRY_NAMES, COUNTRY_ALPHA2_CODES } from "./country-names";
 
 type Country = GeoJSON.Feature<GeoJSON.Geometry, { name?: string }> & { id?: string | number };
 type Side = "left" | "right" | "none";
@@ -31,8 +31,8 @@ const LEFT_DRIVING = new Set([
 ]);
 
 const CHINESE_NAME_OVERRIDES: Record<string, string> = {
-  "156": "中国",
-  "158": "中国台湾",
+  "156": "中国大陆",
+  "158": "台湾",
   "344": "中国香港",
   "446": "中国澳门",
 };
@@ -48,6 +48,12 @@ const SPECIAL_CHINESE_NAMES: Record<string, string> = {
 const numericId = (country: Country) => String(country.id ?? "").padStart(3, "0");
 const sideFor = (country: Country): Side => numericId(country) === "010" ? "none" : LEFT_DRIVING.has(numericId(country)) ? "left" : "right";
 const englishName = (country: Country) => country.properties?.name?.trim() || "Unknown region";
+const flagFor = (country: Country) => {
+  const alpha2 = COUNTRY_ALPHA2_CODES[numericId(country)];
+  return alpha2
+    ? String.fromCodePoint(...alpha2.split("").map((letter) => 127397 + letter.charCodeAt(0)))
+    : "🏳️";
+};
 const displayName = (country: Country) => {
   const id = numericId(country);
   const atlasName = englishName(country);
@@ -349,7 +355,7 @@ export default function Home() {
             <button className="close-detail" onClick={() => { setSelected(null); setHovered(null); setQuery(""); }} aria-label="关闭国家详情">×</button>
             <div className={`detail-direction ${sideFor(activeCountry)}`}><span>{sideFor(activeCountry) === "left" ? "↖" : "↘"}</span>{sideFor(activeCountry) === "left" ? "左侧通行" : "右侧通行"}</div>
             <h2>{displayName(activeCountry)}</h2>
-            <p>{englishName(activeCountry)}</p>
+            <p><span className="detail-flag" aria-hidden="true">{flagFor(activeCountry)}</span>{englishName(activeCountry)}</p>
             <div className="mini-road"><i /><span>车辆沿道路{sideFor(activeCountry) === "left" ? "左侧" : "右侧"}行驶</span><i /></div>
             <small>点击国家可锁定视角，拖动地球继续探索。</small>
           </>

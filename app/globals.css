@@ -63,7 +63,7 @@ button, input { font: inherit; }
 .detail-card.is-visible { opacity: 1; transform: none; pointer-events: auto; }
 .close-detail { position: absolute; right: 10px; top: 8px; border: 0; background: transparent; color: #6e8588; font-size: 18px; cursor: pointer; }
 .detail-direction { display: inline-flex; align-items: center; gap: 6px; font-size: 9px; letter-spacing: .12em; }.detail-direction.left { color: #67e4d0; }.detail-direction.right { color: #ff9868; }
-.detail-direction span { font-size: 15px; }.detail-card h2 { margin: 12px 0 2px; font-size: 25px; font-weight: 500; letter-spacing: -.04em; }.detail-card > p { margin: 0; color: #657c80; font-size: 10px; }
+.detail-direction span { font-size: 15px; }.detail-card h2 { margin: 12px 0 2px; font-size: 25px; font-weight: 500; letter-spacing: -.04em; }.detail-card > p { margin: 0; color: #657c80; font-size: 10px; display: flex; align-items: center; gap: 7px; }.detail-flag { font-size: 16px; line-height: 1; }
 .detail-card > small { display: block; margin-top: 14px; color: #61767a; font-size: 9px; line-height: 1.5; }
 .mini-road { margin-top: 18px; display: flex; align-items: center; gap: 6px; color: #91a7a7; font-size: 8px; }.mini-road i { flex: 1; height: 1px; background: repeating-linear-gradient(90deg, #657e80 0 4px, transparent 4px 7px); }
 
