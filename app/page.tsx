@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { geoCentroid, geoContains, geoOrthographic, geoPath } from "d3-geo";
+import { geoBounds, geoCentroid, geoContains, geoOrthographic, geoPath } from "d3-geo";
 import { feature } from "topojson-client";
 import world from "world-atlas/countries-50m.json";
 
 type Country = GeoJSON.Feature<GeoJSON.Geometry, { name?: string }> & { id?: string | number };
 type Side = "left" | "right" | "none";
 type Filter = "all" | "left" | "right";
+
+const MIN_ZOOM = .82;
+const MAX_ZOOM = 32;
+const clampZoom = (value: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
 
 const LEFT_DRIVING = new Set([
   "028", "036", "044", "050", "052", "060", "064", "072", "086", "090",
@@ -173,10 +177,13 @@ export default function Home() {
 
   const focusCountry = (country: Country) => {
     const [longitude, latitude] = geoCentroid(country);
+    const [[west, south], [east, north]] = geoBounds(country);
+    const geographicSpan = Math.max(Math.abs(east - west), Math.abs(north - south), .1);
+    const focusZoom = clampZoom(Math.max(1.8, 28 / geographicSpan));
     setSelected(country);
     setHovered(null);
     setRotation([-longitude, -latitude]);
-    setZoom(Math.max(zoom, 1.08));
+    setZoom(Math.max(zoom, focusZoom));
     setQuery(displayName(country));
   };
 
@@ -237,7 +244,10 @@ export default function Home() {
           role="img"
           tabIndex={0}
           aria-label="世界各国靠左或靠右行驶的地球仪"
-          onWheel={(event) => { event.preventDefault(); setZoom((value) => Math.max(.82, Math.min(1.58, value - event.deltaY * .0008))); }}
+          onWheel={(event) => {
+            event.preventDefault();
+            setZoom((value) => clampZoom(value * Math.exp(-event.deltaY * .0015)));
+          }}
           onPointerDown={(event) => {
             event.currentTarget.setPointerCapture(event.pointerId);
             const country = countryAtPoint(event.currentTarget, event.clientX, event.clientY);
@@ -251,9 +261,10 @@ export default function Home() {
               const deltaY = event.clientY - drag.current.y;
               if (Math.hypot(deltaX, deltaY) > 3) drag.current.moved = true;
               setHovered(null);
+              const dragScale = .25 / Math.max(1, zoom);
               setRotation([
-                drag.current.rotation[0] + deltaX * 0.25,
-                Math.max(-70, Math.min(70, drag.current.rotation[1] - deltaY * 0.22)),
+                drag.current.rotation[0] + deltaX * dragScale,
+                Math.max(-70, Math.min(70, drag.current.rotation[1] - deltaY * dragScale)),
               ]);
               return;
             }
@@ -269,8 +280,8 @@ export default function Home() {
         />
         <div className="drag-hint"><span>↔</span> 拖动旋转 · 滚轮缩放</div>
         <div className="globe-controls" aria-label="地球仪控制">
-          <button onClick={() => setZoom((value) => Math.min(1.58, value + .12))} aria-label="放大">＋</button>
-          <button onClick={() => setZoom((value) => Math.max(.82, value - .12))} aria-label="缩小">−</button>
+          <button onClick={() => setZoom((value) => clampZoom(value * 1.35))} aria-label="放大">＋</button>
+          <button onClick={() => setZoom((value) => clampZoom(value / 1.35))} aria-label="缩小">−</button>
           <button onClick={() => setPaused((value) => !value)} aria-label={paused ? "继续自动旋转" : "暂停自动旋转"}>{paused ? "▶" : "Ⅱ"}</button>
         </div>
       </section>
