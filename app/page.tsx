@@ -8,10 +8,15 @@ import world from "world-atlas/countries-50m.json";
 type Country = GeoJSON.Feature<GeoJSON.Geometry, { name?: string }> & { id?: string | number };
 type Side = "left" | "right" | "none";
 type Filter = "all" | "left" | "right";
+type PointerPoint = { x: number; y: number };
 
 const MIN_ZOOM = .82;
 const MAX_ZOOM = 32;
 const clampZoom = (value: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
+const pointerDistance = (pointers: Map<number, PointerPoint>) => {
+  const [first, second] = Array.from(pointers.values());
+  return first && second ? Math.hypot(second.x - first.x, second.y - first.y) : 0;
+};
 
 const LEFT_DRIVING = new Set([
   "028", "036", "044", "050", "052", "060", "064", "072", "086", "090",
@@ -59,6 +64,8 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drag = useRef({ x: 0, y: 0, rotation: [-15, -18] as [number, number], moved: false, country: null as Country | null });
+  const pointers = useRef(new Map<number, PointerPoint>());
+  const pinch = useRef({ distance: 0, zoom: 1 });
   const activeCountry = hovered || selected;
 
   useEffect(() => {
@@ -188,6 +195,25 @@ export default function Home() {
     setPaused(false);
   };
 
+  const endPointer = (canvas: HTMLCanvasElement, pointerId: number, allowTap: boolean) => {
+    const tappedCountry = allowTap && pointers.current.size === 1 && !drag.current.moved ? drag.current.country : null;
+    pointers.current.delete(pointerId);
+    if (canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
+
+    if (pointers.current.size >= 2) {
+      pinch.current = { distance: Math.max(1, pointerDistance(pointers.current)), zoom };
+      return;
+    }
+    pinch.current.distance = 0;
+    if (pointers.current.size === 1) {
+      const remaining = Array.from(pointers.current.values())[0];
+      drag.current = { x: remaining.x, y: remaining.y, rotation, moved: true, country: null };
+      return;
+    }
+    setDragging(false);
+    if (tappedCountry) focusCountry(tappedCountry);
+  };
+
   return (
     <main className="site-shell">
       <header className="topbar">
@@ -234,20 +260,40 @@ export default function Home() {
           height={680}
           role="img"
           tabIndex={0}
-          aria-label="世界各国靠左或靠右行驶的地球仪"
+          aria-label="世界各国靠左或靠右行驶的地球仪，可单指旋转、双指缩放"
           onWheel={(event) => {
             event.preventDefault();
             setZoom((value) => clampZoom(value * Math.exp(-event.deltaY * .0015)));
           }}
           onPointerDown={(event) => {
+            event.preventDefault();
             event.currentTarget.setPointerCapture(event.pointerId);
-            const country = countryAtPoint(event.currentTarget, event.clientX, event.clientY);
-            drag.current = { x: event.clientX, y: event.clientY, rotation, moved: false, country };
-            setHovered(country);
+            pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+            if (pointers.current.size === 1) {
+              const country = countryAtPoint(event.currentTarget, event.clientX, event.clientY);
+              drag.current = { x: event.clientX, y: event.clientY, rotation, moved: false, country };
+              setHovered(country);
+            } else if (pointers.current.size === 2) {
+              pinch.current = { distance: Math.max(1, pointerDistance(pointers.current)), zoom };
+              drag.current.moved = true;
+              setHovered(null);
+            }
             setDragging(true);
           }}
           onPointerMove={(event) => {
-            if (dragging) {
+            if (pointers.current.has(event.pointerId)) {
+              pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+            }
+            if (pointers.current.size >= 2) {
+              const distance = pointerDistance(pointers.current);
+              if (pinch.current.distance > 0) {
+                setZoom(clampZoom(pinch.current.zoom * distance / pinch.current.distance));
+              }
+              drag.current.moved = true;
+              setHovered(null);
+              return;
+            }
+            if (pointers.current.size === 1) {
               const deltaX = event.clientX - drag.current.x;
               const deltaY = event.clientY - drag.current.y;
               if (Math.hypot(deltaX, deltaY) > 3) drag.current.moved = true;
@@ -261,15 +307,14 @@ export default function Home() {
             }
             setHovered(countryAtPoint(event.currentTarget, event.clientX, event.clientY));
           }}
-          onPointerUp={() => {
-            const tappedCountry = drag.current.moved ? null : drag.current.country;
-            setDragging(false);
-            if (tappedCountry) focusCountry(tappedCountry);
+          onPointerUp={(event) => endPointer(event.currentTarget, event.pointerId, true)}
+          onPointerLeave={() => { if (pointers.current.size === 0) setHovered(null); }}
+          onPointerCancel={(event) => {
+            endPointer(event.currentTarget, event.pointerId, false);
+            setHovered(null);
           }}
-          onPointerLeave={() => { if (!dragging) setHovered(null); }}
-          onPointerCancel={() => { setDragging(false); setHovered(null); }}
         />
-        <div className="drag-hint"><span>↔</span> 拖动旋转 · 滚轮缩放</div>
+        <div className="drag-hint"><span>↔</span> 单指旋转 · 双指 / 滚轮缩放</div>
         <div className="globe-controls" aria-label="地球仪控制">
           <button onClick={() => setZoom((value) => clampZoom(value * 1.35))} aria-label="放大">＋</button>
           <button onClick={() => setZoom((value) => clampZoom(value / 1.35))} aria-label="缩小">−</button>
