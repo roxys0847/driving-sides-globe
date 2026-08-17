@@ -29,6 +29,9 @@ button, input { font: inherit; }
 .orbit { position: absolute; width: 98%; height: 35%; border: 1px solid rgba(140, 235, 219, .13); border-radius: 50%; transform: rotate(-22deg); pointer-events: none; }
 .orbit-two { transform: rotate(62deg); width: 82%; opacity: .55; }
 .globe-ground-shadow { position: absolute; z-index: 0; left: 50%; bottom: 8%; width: 58%; height: 13%; transform: translateX(-50%); border-radius: 50%; background: rgba(0, 0, 0, .58); filter: blur(34px); pointer-events: none; }
+.location-status { position: absolute; z-index: 5; top: 7%; left: 50%; transform: translateX(-50%); padding: 8px 13px; border: 1px solid rgba(145, 225, 211, .16); border-radius: 999px; background: rgba(6, 20, 26, .72); color: #8da4a6; font-size: 10px; letter-spacing: .06em; white-space: nowrap; pointer-events: none; backdrop-filter: blur(12px); }
+.location-status.located { color: #9ff1df; border-color: rgba(118, 233, 211, .28); }
+.location-status.denied, .location-status.unavailable { color: #9a8881; }
 .drag-hint { position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%); color: #9ab0b1; font-size: 11px; letter-spacing: .12em; white-space: nowrap; }
 .drag-hint span { color: #70ddc9; margin-right: 7px; }
 .globe-controls { position: absolute; right: 7%; bottom: 11%; z-index: 5; display: grid; gap: 5px; }
@@ -75,6 +78,6 @@ button, input { font: inherit; }
 }
 @media (max-width: 560px) {
   .topbar { height: 64px; }.brand { font-size: 0; }.brand-mark { margin: 0; }.search-wrap { width: calc(100% - 48px); right: 0; top: 13px; }.hero-copy { margin-top: 6vh; }.hero-copy h1 { font-size: 45px; }
-  .globe-stage { width: 124vw; margin-left: 1vw; }.globe-controls { right: 13%; }.legend { margin-top: -7vh; padding-bottom: 26px; flex-wrap: wrap; }.legend-title { width: 100%; }.legend-item { width: auto; margin: 0; }.detail-card { left: 5vw; right: 5vw; width: auto; }
+  .globe-stage { width: 124vw; margin-left: 1vw; }.location-status { top: 5%; }.globe-controls { right: 13%; }.legend { margin-top: -7vh; padding-bottom: 26px; flex-wrap: wrap; }.legend-title { width: 100%; }.legend-item { width: auto; margin: 0; }.detail-card { left: 5vw; right: 5vw; width: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .globe { scroll-behavior: auto; } }

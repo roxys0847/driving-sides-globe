@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { geoBounds, geoCentroid, geoContains, geoOrthographic, geoPath } from "d3-geo";
+import { geoBounds, geoCentroid, geoContains, geoDistance, geoOrthographic, geoPath } from "d3-geo";
 import { feature } from "topojson-client";
 import world from "world-atlas/countries-50m.json";
 import { CHINESE_COUNTRY_NAMES, COUNTRY_ALPHA2_CODES } from "./country-names";
@@ -10,6 +10,7 @@ type Country = GeoJSON.Feature<GeoJSON.Geometry, { name?: string }> & { id?: str
 type Side = "left" | "right" | "none";
 type Filter = "all" | "left" | "right";
 type PointerPoint = { x: number; y: number };
+type LocationStatus = "locating" | "located" | "denied" | "unavailable";
 
 const MIN_ZOOM = .82;
 const MAX_ZOOM = 32;
@@ -83,6 +84,8 @@ export default function Home() {
   const [selected, setSelected] = useState<Country | null>(null);
   const [hovered, setHovered] = useState<Country | null>(null);
   const [query, setQuery] = useState("");
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>("locating");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drag = useRef({ x: 0, y: 0, rotation: [-15, -18] as [number, number], moved: false, country: null as Country | null });
   const pointers = useRef(new Map<number, PointerPoint>());
@@ -90,7 +93,26 @@ export default function Home() {
   const activeCountry = hovered || selected;
 
   useEffect(() => {
-    if (dragging || paused || selected || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!("geolocation" in navigator)) {
+      setLocationStatus("unavailable");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const location: [number, number] = [coords.longitude, coords.latitude];
+        setUserLocation(location);
+        setRotation([-location[0], -location[1]]);
+        setPaused(true);
+        setLocationStatus("located");
+      },
+      (error) => setLocationStatus(error.code === error.PERMISSION_DENIED ? "denied" : "unavailable"),
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 300000 },
+    );
+  }, []);
+
+  useEffect(() => {
+    if (locationStatus === "locating" || dragging || paused || selected || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let frame = 0;
     let previous = performance.now();
     const tick = (now: number) => {
@@ -101,7 +123,7 @@ export default function Home() {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [dragging, paused, selected]);
+  }, [dragging, paused, selected, locationStatus]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -162,6 +184,33 @@ export default function Home() {
       context.stroke();
     });
     context.globalAlpha = 1;
+
+    if (userLocation && geoDistance([-rotation[0], -rotation[1]], userLocation) < Math.PI / 2) {
+      const marker = projection(userLocation);
+      if (marker) {
+        const [x, y] = marker;
+        context.save();
+        context.shadowColor = "rgba(110, 255, 225, .75)";
+        context.shadowBlur = 16;
+        context.beginPath();
+        context.arc(x, y, 12, 0, Math.PI * 2);
+        context.fillStyle = "rgba(91, 238, 210, .22)";
+        context.fill();
+        context.beginPath();
+        context.arc(x, y, 5, 0, Math.PI * 2);
+        context.fillStyle = "#a8ffe9";
+        context.fill();
+        context.strokeStyle = "#06171d";
+        context.lineWidth = 2;
+        context.stroke();
+        context.shadowBlur = 0;
+        context.font = "600 12px Arial, sans-serif";
+        context.textAlign = "center";
+        context.fillStyle = "#effffb";
+        context.fillText("你在这里", x, y - 19);
+        context.restore();
+      }
+    }
     context.restore();
 
     context.beginPath();
@@ -170,7 +219,7 @@ export default function Home() {
     context.lineWidth = 2;
     context.stroke();
 
-  }, [countries, rotation, zoom, filter, activeCountry]);
+  }, [countries, rotation, zoom, filter, activeCountry, userLocation]);
 
   const counts = useMemo(() => ({
     left: countries.filter((country) => sideFor(country) === "left").length,
@@ -280,6 +329,12 @@ export default function Home() {
         <div className="orbit orbit-one" />
         <div className="orbit orbit-two" />
         <div className="globe-ground-shadow" />
+        <div className={`location-status ${locationStatus}`} role="status">
+          {locationStatus === "locating" && "正在请求定位…"}
+          {locationStatus === "located" && "📍 已定位 · 当前位置已居中"}
+          {locationStatus === "denied" && "定位权限未开启 · 使用默认视角"}
+          {locationStatus === "unavailable" && "暂时无法定位 · 使用默认视角"}
+        </div>
         <canvas
           ref={canvasRef}
           className={`globe ${dragging ? "is-dragging" : ""}`}
