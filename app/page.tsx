@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { geoCentroid, geoOrthographic, geoPath } from "d3-geo";
+import { geoCentroid, geoContains, geoOrthographic, geoPath } from "d3-geo";
 import { feature } from "topojson-client";
 import world from "world-atlas/countries-50m.json";
 
@@ -53,7 +53,9 @@ export default function Home() {
   const [selected, setSelected] = useState<Country | null>(null);
   const [hovered, setHovered] = useState<Country | null>(null);
   const [query, setQuery] = useState("");
-  const drag = useRef({ x: 0, y: 0, rotation: [-15, -18] as [number, number] });
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drag = useRef({ x: 0, y: 0, rotation: [-15, -18] as [number, number], moved: false, country: null as Country | null });
+  const activeCountry = hovered || selected;
 
   useEffect(() => {
     if (dragging || paused || selected || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -69,9 +71,84 @@ export default function Home() {
     return () => cancelAnimationFrame(frame);
   }, [dragging, paused, selected]);
 
-  const projection = geoOrthographic().translate([340, 340]).scale(314 * zoom).rotate(rotation).clipAngle(90);
-  const path = geoPath(projection);
-  const activeCountry = hovered || selected;
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    const physicalSize = Math.round(680 * pixelRatio);
+    if (canvas.width !== physicalSize || canvas.height !== physicalSize) {
+      canvas.width = physicalSize;
+      canvas.height = physicalSize;
+    }
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    context.clearRect(0, 0, 680, 680);
+    const projection = geoOrthographic().translate([340, 340]).scale(314 * zoom).rotate(rotation).clipAngle(90);
+    const path = geoPath(projection, context);
+
+    context.save();
+    context.beginPath();
+    context.arc(340, 340, 326, 0, Math.PI * 2);
+    context.strokeStyle = "rgba(85, 220, 196, .08)";
+    context.lineWidth = 20;
+    context.stroke();
+
+    context.beginPath();
+    context.arc(340, 340, 314, 0, Math.PI * 2);
+    const ocean = context.createRadialGradient(270, 245, 10, 340, 340, 314);
+    ocean.addColorStop(0, "#183b4c");
+    ocean.addColorStop(.58, "#0b2231");
+    ocean.addColorStop(1, "#06131e");
+    context.fillStyle = ocean;
+    context.fill();
+    context.clip();
+
+    const leftShade = context.createLinearGradient(0, 0, 680, 680);
+    leftShade.addColorStop(0, "rgba(3, 40, 45, .58)");
+    leftShade.addColorStop(.42, "rgba(7, 24, 32, .1)");
+    leftShade.addColorStop(1, "rgba(232, 255, 249, .18)");
+    const rightShade = context.createLinearGradient(680, 680, 0, 0);
+    rightShade.addColorStop(0, "rgba(53, 20, 7, .52)");
+    rightShade.addColorStop(.42, "rgba(32, 17, 11, .09)");
+    rightShade.addColorStop(1, "rgba(255, 246, 233, .16)");
+
+    countries.forEach((country) => {
+      const side = sideFor(country);
+      context.globalAlpha = filter !== "all" && side !== filter ? .09 : 1;
+      context.beginPath();
+      path(country);
+      context.fillStyle = colorFor(country);
+      context.fill();
+      if (side !== "none") {
+        context.fillStyle = side === "left" ? leftShade : rightShade;
+        context.fill();
+      }
+      context.strokeStyle = activeCountry?.id === country.id ? "#effffb" : "rgba(3, 14, 20, .86)";
+      context.lineWidth = activeCountry?.id === country.id ? 2.4 : .8;
+      context.stroke();
+    });
+    context.globalAlpha = 1;
+    context.restore();
+
+    context.beginPath();
+    context.arc(340, 340, 314, 0, Math.PI * 2);
+    context.strokeStyle = "rgba(155, 238, 224, .28)";
+    context.lineWidth = 2;
+    context.stroke();
+
+    context.save();
+    context.translate(340, 340);
+    context.rotate(-35 * Math.PI / 180);
+    context.beginPath();
+    context.ellipse(-75, -112, 168, 206, 0, 0, Math.PI * 2);
+    context.strokeStyle = "rgba(222, 255, 248, .055)";
+    context.lineWidth = 28;
+    context.stroke();
+    context.restore();
+  }, [countries, rotation, zoom, filter, activeCountry]);
+
   const counts = useMemo(() => ({
     left: countries.filter((country) => sideFor(country) === "left").length,
     right: countries.filter((country) => sideFor(country) === "right").length,
@@ -81,6 +158,18 @@ export default function Home() {
     if (!term) return [];
     return countries.filter((country) => `${displayName(country)} ${country.properties?.name ?? ""}`.toLowerCase().includes(term)).slice(0, 5);
   }, [countries, query]);
+
+  const countryAtPoint = (canvas: HTMLCanvasElement, clientX: number, clientY: number) => {
+    const bounds = canvas.getBoundingClientRect();
+    const point: [number, number] = [
+      (clientX - bounds.left) * 680 / bounds.width,
+      (clientY - bounds.top) * 680 / bounds.height,
+    ];
+    const projection = geoOrthographic().translate([340, 340]).scale(314 * zoom).rotate(rotation).clipAngle(90);
+    const coordinates = projection.invert?.(point);
+    if (!coordinates) return null;
+    return countries.find((country) => geoContains(country, coordinates)) || null;
+  };
 
   const focusCountry = (country: Country) => {
     const [longitude, latitude] = geoCentroid(country);
@@ -140,72 +229,44 @@ export default function Home() {
         <div className="orbit orbit-one" />
         <div className="orbit orbit-two" />
         <div className="globe-ground-shadow" />
-        <svg
+        <canvas
+          ref={canvasRef}
           className={`globe ${dragging ? "is-dragging" : ""}`}
-          viewBox="0 0 680 680"
+          width={680}
+          height={680}
           role="img"
+          tabIndex={0}
           aria-label="世界各国靠左或靠右行驶的地球仪"
           onWheel={(event) => { event.preventDefault(); setZoom((value) => Math.max(.82, Math.min(1.58, value - event.deltaY * .0008))); }}
           onPointerDown={(event) => {
             event.currentTarget.setPointerCapture(event.pointerId);
-            drag.current = { x: event.clientX, y: event.clientY, rotation };
+            const country = countryAtPoint(event.currentTarget, event.clientX, event.clientY);
+            drag.current = { x: event.clientX, y: event.clientY, rotation, moved: false, country };
+            setHovered(country);
             setDragging(true);
           }}
           onPointerMove={(event) => {
-            if (!dragging) return;
-            setRotation([
-              drag.current.rotation[0] + (event.clientX - drag.current.x) * 0.25,
-              Math.max(-70, Math.min(70, drag.current.rotation[1] - (event.clientY - drag.current.y) * 0.22)),
-            ]);
+            if (dragging) {
+              const deltaX = event.clientX - drag.current.x;
+              const deltaY = event.clientY - drag.current.y;
+              if (Math.hypot(deltaX, deltaY) > 3) drag.current.moved = true;
+              setHovered(null);
+              setRotation([
+                drag.current.rotation[0] + deltaX * 0.25,
+                Math.max(-70, Math.min(70, drag.current.rotation[1] - deltaY * 0.22)),
+              ]);
+              return;
+            }
+            setHovered(countryAtPoint(event.currentTarget, event.clientX, event.clientY));
           }}
-          onPointerUp={() => setDragging(false)}
-          onPointerCancel={() => setDragging(false)}
-        >
-          <defs>
-            <radialGradient id="ocean" cx="35%" cy="28%"><stop offset="0" stopColor="#183b4c" /><stop offset=".58" stopColor="#0b2231" /><stop offset="1" stopColor="#06131e" /></radialGradient>
-            <linearGradient id="shade-left" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="680" y2="680">
-              <stop offset="0" stopColor="#03282d" stopOpacity=".58" />
-              <stop offset=".38" stopColor="#071820" stopOpacity=".12" />
-              <stop offset=".72" stopColor="#cffff5" stopOpacity=".08" />
-              <stop offset="1" stopColor="#e8fff9" stopOpacity=".2" />
-            </linearGradient>
-            <linearGradient id="shade-right" gradientUnits="userSpaceOnUse" x1="680" y1="680" x2="0" y2="0">
-              <stop offset="0" stopColor="#351407" stopOpacity=".52" />
-              <stop offset=".38" stopColor="#20110b" stopOpacity=".1" />
-              <stop offset=".72" stopColor="#fff0d8" stopOpacity=".08" />
-              <stop offset="1" stopColor="#fff6e9" stopOpacity=".18" />
-            </linearGradient>
-            <clipPath id="sphere-clip"><circle cx="340" cy="340" r="314" /></clipPath>
-          </defs>
-          <circle className="globe-halo" cx="340" cy="340" r="326" />
-          <circle cx="340" cy="340" r="314" fill="url(#ocean)" />
-          <g clipPath="url(#sphere-clip)">
-            {countries.map((country) => {
-              const d = path(country);
-              if (!d) return null;
-              const side = sideFor(country);
-              const dimmed = filter !== "all" && side !== filter;
-              const active = activeCountry?.id === country.id;
-              return (
-                <g key={country.id} className={`country-group ${dimmed ? "is-dimmed" : ""}`}>
-                  <path
-                    d={d}
-                    fill={colorFor(country)}
-                    className={`country ${active ? "is-active" : ""}`}
-                    onPointerEnter={() => { if (!dragging) setHovered(country); }}
-                    onPointerLeave={() => setHovered(null)}
-                    onClick={(event) => { event.stopPropagation(); if (!dragging) focusCountry(country); }}
-                    role="button"
-                    aria-label={`${displayName(country)}，${side === "left" ? "左侧通行" : side === "right" ? "右侧通行" : "无常规道路数据"}`}
-                  />
-                  {side !== "none" && <path d={d} fill={`url(#shade-${side})`} className="country-shade" aria-hidden="true" />}
-                </g>
-              );
-            })}
-          </g>
-          <circle className="globe-rim" cx="340" cy="340" r="314" />
-          <ellipse className="globe-glint" cx="265" cy="228" rx="168" ry="206" />
-        </svg>
+          onPointerUp={() => {
+            const tappedCountry = drag.current.moved ? null : drag.current.country;
+            setDragging(false);
+            if (tappedCountry) focusCountry(tappedCountry);
+          }}
+          onPointerLeave={() => { if (!dragging) setHovered(null); }}
+          onPointerCancel={() => { setDragging(false); setHovered(null); }}
+        />
         <div className="drag-hint"><span>↔</span> 拖动旋转 · 滚轮缩放</div>
         <div className="globe-controls" aria-label="地球仪控制">
           <button onClick={() => setZoom((value) => Math.min(1.58, value + .12))} aria-label="放大">＋</button>
