@@ -2,12 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { geoBounds, geoCentroid, geoContains, geoOrthographic, geoPath } from "d3-geo";
-import isoCountries from "i18n-iso-countries";
-import zhLocale from "i18n-iso-countries/langs/zh.json";
 import { feature } from "topojson-client";
 import world from "world-atlas/countries-50m.json";
-
-isoCountries.registerLocale(zhLocale);
+import { CHINESE_COUNTRY_NAMES } from "./country-names";
 
 type Country = GeoJSON.Feature<GeoJSON.Geometry, { name?: string }> & { id?: string | number };
 type Side = "left" | "right" | "none";
@@ -50,13 +47,13 @@ const SPECIAL_CHINESE_NAMES: Record<string, string> = {
 
 const numericId = (country: Country) => String(country.id ?? "").padStart(3, "0");
 const sideFor = (country: Country): Side => numericId(country) === "010" ? "none" : LEFT_DRIVING.has(numericId(country)) ? "left" : "right";
+const englishName = (country: Country) => country.properties?.name?.trim() || "Unknown region";
 const displayName = (country: Country) => {
   const id = numericId(country);
-  const englishName = country.properties?.name || "";
+  const atlasName = englishName(country);
   return CHINESE_NAME_OVERRIDES[id]
-    || SPECIAL_CHINESE_NAMES[englishName]
-    || isoCountries.getName(id, "zh")
-    || englishName
+    || SPECIAL_CHINESE_NAMES[atlasName]
+    || CHINESE_COUNTRY_NAMES[id]
     || "未知地区";
 };
 const colorFor = (country: Country) => {
@@ -176,7 +173,7 @@ export default function Home() {
   const matches = useMemo(() => {
     const term = query.trim().toLowerCase();
     if (!term) return [];
-    return countries.filter((country) => `${displayName(country)} ${country.properties?.name ?? ""}`.toLowerCase().includes(term)).slice(0, 5);
+    return countries.filter((country) => `${displayName(country)} ${englishName(country)}`.toLowerCase().includes(term)).slice(0, 5);
   }, [countries, query]);
 
   const countryAtPoint = (canvas: HTMLCanvasElement, clientX: number, clientY: number) => {
@@ -200,6 +197,12 @@ export default function Home() {
     setHovered(null);
     setRotation([-longitude, -latitude]);
     setZoom(Math.max(zoom, focusZoom));
+    setQuery(displayName(country));
+  };
+
+  const selectCountry = (country: Country) => {
+    setSelected(country);
+    setHovered(null);
     setQuery(displayName(country));
   };
 
@@ -229,7 +232,7 @@ export default function Home() {
       return;
     }
     setDragging(false);
-    if (tappedCountry) focusCountry(tappedCountry);
+    if (tappedCountry) selectCountry(tappedCountry);
   };
 
   return (
@@ -251,7 +254,7 @@ export default function Home() {
               {matches.map((country) => (
                 <button key={country.id} onClick={() => focusCountry(country)}>
                   <span className={`result-dot ${sideFor(country)}`} />
-                  <span>{displayName(country)}<small>{country.properties?.name}</small></span>
+                  <span>{displayName(country)}<small>{englishName(country)}</small></span>
                   <b>{sideFor(country) === "left" ? "左行 ↖" : "右行 ↘"}</b>
                 </button>
               ))}
@@ -346,7 +349,7 @@ export default function Home() {
             <button className="close-detail" onClick={() => { setSelected(null); setHovered(null); setQuery(""); }} aria-label="关闭国家详情">×</button>
             <div className={`detail-direction ${sideFor(activeCountry)}`}><span>{sideFor(activeCountry) === "left" ? "↖" : "↘"}</span>{sideFor(activeCountry) === "left" ? "左侧通行" : "右侧通行"}</div>
             <h2>{displayName(activeCountry)}</h2>
-            <p>{activeCountry.properties?.name}</p>
+            <p>{englishName(activeCountry)}</p>
             <div className="mini-road"><i /><span>车辆沿道路{sideFor(activeCountry) === "left" ? "左侧" : "右侧"}行驶</span><i /></div>
             <small>点击国家可锁定视角，拖动地球继续探索。</small>
           </>
