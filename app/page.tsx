@@ -427,7 +427,10 @@ export default function Home() {
         </button>
       </aside>
 
-      <div className="stat-card"><strong>{counts.left}</strong><span>个可见国家与地区采用左侧通行</span></div>
+      <div className="stat-card" aria-label="全球道路通行方向数量">
+        <div className="stat-item left"><strong>{counts.left}</strong><span>个国家与地区采用左侧通行</span></div>
+        <div className="stat-item right"><strong>{counts.right}</strong><span>个国家与地区采用右侧通行</span></div>
+      </div>
       <div className="coordinates">{(-rotation[1]).toFixed(1)}° N · {(-rotation[0]).toFixed(1)}° E <span>{paused || selected ? "HOLD" : "LIVE"}</span></div>
       <div className="data-note">边界为示意用途 · 点击图例可筛选</div>
     </main>

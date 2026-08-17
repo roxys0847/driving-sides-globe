@@ -44,8 +44,10 @@ button, input { font: inherit; }
 .legend-item strong, .legend-item small { display: block; }.legend-item strong { font-size: 12px; }.legend-item small { color: #6f878c; font-size: 9px; margin-top: 4px; letter-spacing: .04em; }
 .swatch { width: 30px; height: 24px; border-radius: 5px; transform: rotate(-4deg); }
 .left-swatch { background: #2a9b9d; box-shadow: -5px -5px 0 #7ae7d5; }.right-swatch { background: #ef744d; box-shadow: 5px 5px 0 #ffb269; }
-.stat-card { position: absolute; left: 7vw; bottom: 8vh; padding-left: 14px; border-left: 2px solid #ef8456; display: grid; }
-.stat-card strong { font-size: 25px; font-weight: 500; }.stat-card span { color: #70868a; font-size: 10px; margin-top: 4px; }
+.stat-card { position: absolute; left: 7vw; bottom: 8vh; display: flex; gap: 24px; }
+.stat-item { min-width: 138px; padding-left: 14px; border-left: 2px solid; display: grid; }
+.stat-item.left { border-color: #62d8c5; }.stat-item.right { border-color: #ef8456; }
+.stat-item strong { font-size: 25px; font-weight: 500; }.stat-item span { color: #70868a; font-size: 10px; margin-top: 4px; }
 .coordinates { position: absolute; right: 5vw; bottom: 5vh; color: #51676d; font: 10px/1 monospace; letter-spacing: .1em; }
 .coordinates span { color: #76e8d1; margin-left: 12px; }
 .data-note { position: absolute; left: 50%; bottom: 2.7vh; transform: translateX(-50%); color: #43565a; font-size: 9px; letter-spacing: .1em; }
