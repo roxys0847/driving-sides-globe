@@ -139,6 +139,7 @@ export default function Home() {
       <section className="globe-stage" aria-label="可旋转的全球道路通行方向地图">
         <div className="orbit orbit-one" />
         <div className="orbit orbit-two" />
+        <div className="globe-ground-shadow" />
         <svg
           className={`globe ${dragging ? "is-dragging" : ""}`}
           viewBox="0 0 680 680"
@@ -162,8 +163,18 @@ export default function Home() {
         >
           <defs>
             <radialGradient id="ocean" cx="35%" cy="28%"><stop offset="0" stopColor="#183b4c" /><stop offset=".58" stopColor="#0b2231" /><stop offset="1" stopColor="#06131e" /></radialGradient>
-            <filter id="shadow-left" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="-5" dy="-5" stdDeviation="2" floodColor="#92fff2" floodOpacity=".62" /></filter>
-            <filter id="shadow-right" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="5" dy="5" stdDeviation="2" floodColor="#ffbb78" floodOpacity=".58" /></filter>
+            <linearGradient id="shade-left" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="680" y2="680">
+              <stop offset="0" stopColor="#03282d" stopOpacity=".58" />
+              <stop offset=".38" stopColor="#071820" stopOpacity=".12" />
+              <stop offset=".72" stopColor="#cffff5" stopOpacity=".08" />
+              <stop offset="1" stopColor="#e8fff9" stopOpacity=".2" />
+            </linearGradient>
+            <linearGradient id="shade-right" gradientUnits="userSpaceOnUse" x1="680" y1="680" x2="0" y2="0">
+              <stop offset="0" stopColor="#351407" stopOpacity=".52" />
+              <stop offset=".38" stopColor="#20110b" stopOpacity=".1" />
+              <stop offset=".72" stopColor="#fff0d8" stopOpacity=".08" />
+              <stop offset="1" stopColor="#fff6e9" stopOpacity=".18" />
+            </linearGradient>
             <clipPath id="sphere-clip"><circle cx="340" cy="340" r="314" /></clipPath>
           </defs>
           <circle className="globe-halo" cx="340" cy="340" r="326" />
@@ -176,18 +187,19 @@ export default function Home() {
               const dimmed = filter !== "all" && side !== filter;
               const active = activeCountry?.id === country.id;
               return (
-                <path
-                  key={country.id}
-                  d={d}
-                  fill={colorFor(country)}
-                  className={`country ${dimmed ? "is-dimmed" : ""} ${active ? "is-active" : ""}`}
-                  filter={side === "none" ? undefined : `url(#shadow-${side})`}
-                  onPointerEnter={() => { if (!dragging) setHovered(country); }}
-                  onPointerLeave={() => setHovered(null)}
-                  onClick={(event) => { event.stopPropagation(); if (!dragging) focusCountry(country); }}
-                  role="button"
-                  aria-label={`${displayName(country)}，${side === "left" ? "左侧通行" : side === "right" ? "右侧通行" : "无常规道路数据"}`}
-                />
+                <g key={country.id} className={`country-group ${dimmed ? "is-dimmed" : ""}`}>
+                  <path
+                    d={d}
+                    fill={colorFor(country)}
+                    className={`country ${active ? "is-active" : ""}`}
+                    onPointerEnter={() => { if (!dragging) setHovered(country); }}
+                    onPointerLeave={() => setHovered(null)}
+                    onClick={(event) => { event.stopPropagation(); if (!dragging) focusCountry(country); }}
+                    role="button"
+                    aria-label={`${displayName(country)}，${side === "left" ? "左侧通行" : side === "right" ? "右侧通行" : "无常规道路数据"}`}
+                  />
+                  {side !== "none" && <path d={d} fill={`url(#shade-${side})`} className="country-shade" aria-hidden="true" />}
+                </g>
               );
             })}
           </g>

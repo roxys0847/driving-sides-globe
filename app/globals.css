@@ -23,16 +23,19 @@ button, input { font: inherit; }
 .hero-copy h1 { margin: 14px 0 20px; max-width: 390px; font-size: clamp(40px, 4.9vw, 76px); line-height: .98; letter-spacing: -.06em; font-weight: 500; }
 .hero-copy p { margin: 0; color: var(--muted); max-width: 340px; font-size: 14px; line-height: 1.8; }
 .globe-stage { position: absolute; left: 51%; top: 52%; width: min(70vw, 780px); aspect-ratio: 1; transform: translate(-34%, -50%); display: grid; place-items: center; }
-.globe { width: 88%; height: 88%; overflow: visible; touch-action: none; cursor: grab; filter: drop-shadow(0 34px 55px rgba(0,0,0,.5)); }
+.globe { position: relative; z-index: 1; width: 88%; height: 88%; overflow: visible; touch-action: none; cursor: grab; }
 .globe.is-dragging { cursor: grabbing; }
 .country { stroke: rgba(3, 14, 20, .86); stroke-width: .8; transition: opacity .18s, stroke .18s, stroke-width .18s; cursor: pointer; }
-.country.is-dimmed { opacity: .09; filter: none; }
+.country-group { transition: opacity .18s; }
+.country-group.is-dimmed { opacity: .09; }
+.country-shade { pointer-events: none; mix-blend-mode: multiply; }
 .country.is-active { stroke: #effffb; stroke-width: 2.4; }
 .globe-rim { fill: none; stroke: rgba(155,238,224,.28); stroke-width: 2; }
 .globe-halo { fill: none; stroke: rgba(85,220,196,.08); stroke-width: 20; }
 .globe-glint { fill: none; stroke: rgba(222,255,248,.06); stroke-width: 32; transform: rotate(-35deg); transform-origin: 340px 340px; pointer-events: none; }
 .orbit { position: absolute; width: 98%; height: 35%; border: 1px solid rgba(140, 235, 219, .13); border-radius: 50%; transform: rotate(-22deg); pointer-events: none; }
 .orbit-two { transform: rotate(62deg); width: 82%; opacity: .55; }
+.globe-ground-shadow { position: absolute; z-index: 0; left: 50%; bottom: 8%; width: 58%; height: 13%; transform: translateX(-50%); border-radius: 50%; background: rgba(0, 0, 0, .58); filter: blur(34px); pointer-events: none; }
 .drag-hint { position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%); color: #9ab0b1; font-size: 11px; letter-spacing: .12em; white-space: nowrap; }
 .drag-hint span { color: #70ddc9; margin-right: 7px; }
 .globe-controls { position: absolute; right: 7%; bottom: 11%; z-index: 5; display: grid; gap: 5px; }
