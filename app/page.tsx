@@ -2,8 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { geoBounds, geoCentroid, geoContains, geoOrthographic, geoPath } from "d3-geo";
+import isoCountries from "i18n-iso-countries";
+import zhLocale from "i18n-iso-countries/langs/zh.json";
 import { feature } from "topojson-client";
 import world from "world-atlas/countries-50m.json";
+
+isoCountries.registerLocale(zhLocale);
 
 type Country = GeoJSON.Feature<GeoJSON.Geometry, { name?: string }> & { id?: string | number };
 type Side = "left" | "right" | "none";
@@ -29,18 +33,32 @@ const LEFT_DRIVING = new Set([
   "826", "831", "832", "833", "834", "850", "882", "894",
 ]);
 
-const CHINESE_NAMES: Record<string, string> = {
-  "036": "澳大利亚", "050": "孟加拉国", "124": "加拿大", "156": "中国", "196": "塞浦路斯",
-  "250": "法国", "276": "德国", "344": "中国香港", "356": "印度", "360": "印度尼西亚",
-  "372": "爱尔兰", "380": "意大利", "392": "日本", "404": "肯尼亚", "446": "中国澳门",
-  "458": "马来西亚", "484": "墨西哥", "554": "新西兰", "586": "巴基斯坦", "643": "俄罗斯",
-  "702": "新加坡", "710": "南非", "724": "西班牙", "764": "泰国", "792": "土耳其",
-  "826": "英国", "840": "美国", "704": "越南", "076": "巴西", "032": "阿根廷",
+const CHINESE_NAME_OVERRIDES: Record<string, string> = {
+  "156": "中国",
+  "158": "中国台湾",
+  "344": "中国香港",
+  "446": "中国澳门",
+};
+
+const SPECIAL_CHINESE_NAMES: Record<string, string> = {
+  "Somaliland": "索马里兰",
+  "Kosovo": "科索沃",
+  "N. Cyprus": "北塞浦路斯",
+  "Indian Ocean Ter.": "印度洋属地",
+  "Siachen Glacier": "锡亚琴冰川",
 };
 
 const numericId = (country: Country) => String(country.id ?? "").padStart(3, "0");
 const sideFor = (country: Country): Side => numericId(country) === "010" ? "none" : LEFT_DRIVING.has(numericId(country)) ? "left" : "right";
-const displayName = (country: Country) => CHINESE_NAMES[numericId(country)] || country.properties?.name || "未知地区";
+const displayName = (country: Country) => {
+  const id = numericId(country);
+  const englishName = country.properties?.name || "";
+  return CHINESE_NAME_OVERRIDES[id]
+    || SPECIAL_CHINESE_NAMES[englishName]
+    || isoCountries.getName(id, "zh")
+    || englishName
+    || "未知地区";
+};
 const colorFor = (country: Country) => {
   const id = Number(country.id ?? 0);
   if (sideFor(country) === "none") return "#39484d";
