@@ -13,15 +13,12 @@ Countries and regions are distinguished by color, while diagonal shading makes t
 - Interactive globe with automatic rotation, manual rotation, and zoom controls
 - Separate colors and directional shading for left- and right-hand traffic
 - Chinese primary names, English secondary names, and country or region flags
-- Search for countries and regions, including small areas such as Macao
 - Country details showing the flag, bilingual name, and traffic direction
 - Left- and right-hand traffic filters with live region totals
 - Browser geolocation request, map marker, and location-centered initial view
 - Responsive desktop and mobile layout
 - One-finger rotation and two-finger pinch zoom on touch devices
 - Reduced-motion support and accessible control labels
-
-## How to Use
 
 ### Desktop
 
